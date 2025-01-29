@@ -279,25 +279,26 @@
             <div class="max-w-lg mx-auto">
                 <form id="contactForm" class="space-y-6">
                     <div>
-                        <input type="text" id="name" placeholder="Name" required
+                        <input type="text" id="name" name="name" placeholder="Name" required
                             class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
                     </div>
                     <div>
-                        <input type="email" id="email" placeholder="Email" required
+                        <input type="email" id="email" name="email" placeholder="Email" required
                             class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
                     </div>
                     <div>
-                        <textarea id="message" placeholder="Message" required rows="5"
+                        <textarea id="message" name="message" placeholder="Message" required rows="5"
                             class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition"></textarea>
                     </div>
                     <div class="cf-turnstile" 
-                 data-sitekey="0x4AAAAAAAiAc4ZZNhhp8JZE" 
-                 data-theme="light"
-                 data-callback="handleTurnstileCallback">
-            </div>
-            <div id="message-div" class="hidden mt-4 p-4 bg-green-500 text-white rounded">
-                <p id="message-content"></p>
-            </div>
+                        data-sitekey="0x4AAAAAAAiAc4ZZNhhp8JZE" 
+                        data-callback="handleTurnstileCallback"
+                        data-theme="light"
+                        data-action="contact">
+                    </div>
+                    <div id="message-div" class="hidden mt-4 p-4 rounded">
+                        <p id="message-content"></p>
+                    </div>
                     <button type="submit"
                         class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition">
                         Send Message
@@ -364,45 +365,49 @@
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script>
     document.getElementById('contactForm').addEventListener('submit', async function(event) {
-    event.preventDefault();
+        event.preventDefault();
 
+        // Get form data
+        const formData = {
+            name: this.name.value,
+            email: this.email.value,
+            message: this.message.value,
+            token: turnstile.getResponse() // Get the Turnstile token
+        };
 
-    // Get all turnstile response tokens
-    const turnstileResponse = document.querySelector('[name="cf-turnstile-response"]');
-    if (!turnstileResponse || !turnstileResponse.value) {
-        $('#message-content').text('Please complete the CAPTCHA before submitting the form.').css('color', 'red');
-        $('#message-div').show();
-        return;
-    }
+        try {
+            const response = await fetch('https://33insights.ngrok.io/h2-contact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
 
-    const formData = new FormData(this);
+            const result = await response.json();
 
-    try {
-        const response = await fetch('https://33insights.ngrok.io/h2-contact', {
-            method: 'POST',
-            body: formData,
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            handleSuccess();
-        } else {
-            $('#message-content').text(result.message || 'An error occurred. Please try again.').css('color', 'red');
-            $('#message-div').show();
+            if (result.success) {
+                document.getElementById('message-content').textContent = 'Message sent successfully!';
+                document.getElementById('message-div').classList.remove('hidden');
+                document.getElementById('message-div').classList.add('bg-green-500', 'text-white');
+                this.reset();
+                turnstile.reset(); // Reset the Turnstile widget
+            } else {
+                document.getElementById('message-content').textContent = result.message || 'An error occurred. Please try again.';
+                document.getElementById('message-div').classList.remove('hidden');
+                document.getElementById('message-div').classList.add('bg-red-500', 'text-white');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('message-content').textContent = 'There was a problem submitting your form. Please try again.';
+            document.getElementById('message-div').classList.remove('hidden');
+            document.getElementById('message-div').classList.add('bg-red-500', 'text-white');
         }
-    } catch (error) {
-        console.error('Error:', error);
-        $('#message-content').text('There was a problem submitting your form. Please try again.').css('color', 'red');
-        $('#message-div').show();
+    });
+
+    function handleTurnstileCallback(token) {
+        console.log("Turnstile verification completed");
     }
-});
-
-
-function handleTurnstileCallback(token) {
-    // Optional: You can handle the token here if needed
-    console.log("Turnstile verification completed");
-}
 </script>
 </body>
 </html>
